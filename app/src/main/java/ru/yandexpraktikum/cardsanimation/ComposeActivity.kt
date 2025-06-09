@@ -21,11 +21,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ru.yandexpraktikum.cardsanimation.compose.CardStack
+import ru.yandexpraktikum.cardsanimation.compose.AnimatedCardStack
 import ru.yandexpraktikum.cardsanimation.model.CardData
 import ru.yandexpraktikum.cardsanimation.ui.theme.CardsAnimationTheme
 
-class MainActivity : ComponentActivity() {
+class ComposeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -66,7 +66,7 @@ fun AnimatedCardScreen(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        CardStack(cards = cards)
+        AnimatedCardStack(cards = cards)
 
         Spacer(modifier = Modifier.height(60.dp))
 

@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import ru.yandexpraktikum.cardsanimation.model.CardData
 
 @Composable
-fun AnimatedStackCard(
+fun AnimatedCard(
     cardIndex: Int,
     totalCards: Int,
     cardData: CardData,
