@@ -24,20 +24,9 @@ import ru.yandexpraktikum.cardsanimation.model.CardData
 @Composable
 fun AnimatedCard(
     cardIndex: Int,
-    totalCards: Int,
     cardData: CardData,
-    isRotated: Boolean,
-    baseRotation: Float
+    targetRotation: Float
 ) {
-    // Расчёт расположения карт в зависимости от состояния
-    val targetRotation = if (isRotated) {
-        // В развёрнутом состоянии карты занимают половину окружности
-        val angleStep = if (totalCards > 1) 180f / (totalCards - 1) else 0f
-        -90f + (cardIndex * angleStep) // Distribute from -90° to +90°
-    } else {
-        // В свёрнутом карты возвращаются в исходное положение
-        baseRotation
-    }
 
     val animatedRotationZ by animateFloatAsState(
         targetValue = targetRotation,
