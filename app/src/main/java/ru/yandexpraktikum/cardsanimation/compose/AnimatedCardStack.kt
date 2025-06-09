@@ -64,7 +64,7 @@ fun CardStack(cards: List<CardData>) {
     ) {
         // Отрисовка колоды карт в исходной позиции
         for (i in 0 until cardCount) {
-            val cardData = currentCards[i]
+            val cardData = cards[i]
 
             val baseRotation = if (cardCount > 1) {
                 val angleStep = 45f / (cardCount - 1)
