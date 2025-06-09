@@ -48,11 +48,11 @@ class AnimatedCardStackView @JvmOverloads constructor(
         ): Boolean {
             val isHorizontalFling = abs(velocityX) > abs(velocityY)
             val isVerticalFling = abs(velocityY) > abs(velocityX)
-            
+
             if (isHorizontalFling && abs(velocityX) > 500f) {
                 handleHorizontalSwipe()
             }
-            
+
             if (isVerticalFling) {
                 handleVerticalSwipe()
             }
@@ -99,7 +99,6 @@ class AnimatedCardStackView @JvmOverloads constructor(
 
         // Возврат в исходное положение
         isRotated = false
-
         updateCardPositions()
     }
 
@@ -157,7 +156,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
     private fun handleHorizontalSwipe() {
         // Берём нижнюю карту (первый элемент) и перемещаем в конец списка
         val reorderedCards = cardDataList.drop(1) + cardDataList.first()
-        
+
         // Обновляем данные карт без пересоздания view
         cardDataList = reorderedCards
         cards.forEachIndexed { index, cardView ->
