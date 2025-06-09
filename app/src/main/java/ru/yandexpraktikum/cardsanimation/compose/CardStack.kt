@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -18,8 +17,9 @@ import ru.yandexpraktikum.cardsanimation.model.CardData
 fun CardStack(cards: List<CardData>) {
     val cardCount = cards.size
     var isRotated by remember { mutableStateOf(false) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var cardOffset by remember { mutableIntStateOf(0) }
+    var currentCards by remember { mutableStateOf(cards) }
+    var verticalDragOffset by remember { mutableFloatStateOf(0f) }
+    var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = Modifier
@@ -28,31 +28,35 @@ fun CardStack(cards: List<CardData>) {
                     onDragEnd = {
                         // Обрабатываем жест после того, как пользователь убрал палец
                         handleDragEnd(
-                            verticalDragDistance = dragOffset,
-                            onFanStateChange = { newFanState -> isRotated = newFanState }
+                            verticalDragDistance = verticalDragOffset,
+                            horizontalDragDistance = horizontalDragOffset,
+                            onFanStateChange = { newFanState -> isRotated = newFanState },
+                            onCardsReorder = {
+                                // Берём нижнюю карту (первый элемент) и перемещаем в конец списка
+                                val reorderedCards = currentCards.drop(1) + currentCards.first()
+                                currentCards = reorderedCards
+                            }
                         )
-                        dragOffset = 0f
+                        verticalDragOffset = 0f
+                        horizontalDragOffset = 0f
                     }
                 ) { _, dragAmount ->
                     val horizontalMovement = dragAmount.x
                     val verticalMovement = dragAmount.y
 
-                    val isHorizontalSwipe = kotlin.math.abs(horizontalMovement) > kotlin.math.abs(verticalMovement)
-                    val isVerticalSwipe = kotlin.math.abs(verticalMovement) > kotlin.math.abs(horizontalMovement)
+                    val isHorizontalSwipe =
+                        kotlin.math.abs(horizontalMovement) > kotlin.math.abs(verticalMovement)
+                    val isVerticalSwipe =
+                        kotlin.math.abs(verticalMovement) > kotlin.math.abs(horizontalMovement)
 
                     if (isVerticalSwipe) {
                         // При вертикальном свайпе раскрываем/складываем карты
-                        dragOffset += verticalMovement
+                        verticalDragOffset += verticalMovement
                     }
 
-                    // При горизонтальном свайпе перетасовываем карты
                     if (isHorizontalSwipe) {
-                        handleHorizontalSwipe(
-                            horizontalMovement = horizontalMovement,
-                            currentCardOffset = cardOffset,
-                            cardCount = cardCount,
-                            onCardCycle = { newCardOffset -> cardOffset = newCardOffset }
-                        )
+                        // Накапливаем горизонтальное движение для обработки в onDragEnd
+                        horizontalDragOffset += horizontalMovement
                     }
                 }
             },
@@ -60,8 +64,7 @@ fun CardStack(cards: List<CardData>) {
     ) {
         // Отрисовка колоды карт в исходной позиции
         for (i in 0 until cardCount) {
-            val actualCardIndex = (i + cardOffset) % cardCount
-            val cardData = cards[actualCardIndex]
+            val cardData = currentCards[i]
 
             val baseRotation = if (cardCount > 1) {
                 val angleStep = 45f / (cardCount - 1)
@@ -82,34 +85,26 @@ fun CardStack(cards: List<CardData>) {
 }
 
 /**
- * Обработка окончания свайпа вниз или вверх
- * (когда пользователь убирает палец с экрана)
+ * Обработка окончания свайпа (когда пользователь убирает палец с экрана)
+ * Проверяет как вертикальное, так и горизонтальное движение
  */
 fun handleDragEnd(
     verticalDragDistance: Float,
-    onFanStateChange: (Boolean) -> Unit
+    horizontalDragDistance: Float,
+    onFanStateChange: (Boolean) -> Unit,
+    onCardsReorder: () -> Unit
 ) {
-    val threshold = 100f
+    val verticalThreshold = 100f
+    val horizontalThreshold = 100f
 
+    // Обрабатываем вертикальное движение
     when {
-        verticalDragDistance < -threshold -> onFanStateChange(true)
-        verticalDragDistance > threshold -> onFanStateChange(false)
+        verticalDragDistance < -verticalThreshold -> onFanStateChange(true)
+        verticalDragDistance > verticalThreshold -> onFanStateChange(false)
     }
-}
 
-/**
- * Обработка горизонтального свайпа (перетасовка карт)
- */
-fun handleHorizontalSwipe(
-    horizontalMovement: Float,
-    currentCardOffset: Int,
-    cardCount: Int,
-    onCardCycle: (Int) -> Unit
-) {
-    val swipeThreshold = 50f
-
-    if (kotlin.math.abs(horizontalMovement) > swipeThreshold) {
-        val newOffset = if (currentCardOffset - 1 < 0) cardCount - 1 else currentCardOffset - 1
-        onCardCycle(newOffset)
+    // Обработка горизонтального движения
+    if (kotlin.math.abs(horizontalDragDistance) > horizontalThreshold) {
+        onCardsReorder()
     }
 }
