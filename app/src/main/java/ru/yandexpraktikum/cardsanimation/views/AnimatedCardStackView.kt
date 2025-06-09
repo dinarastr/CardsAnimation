@@ -24,7 +24,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
 
     // Инстанс GestureDetector для обработки жестов
     private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-        
+
         override fun onScroll(
             e1: MotionEvent?,
             e2: MotionEvent,
@@ -33,7 +33,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
         ): Boolean {
             val horizontalMovement = -distanceX
             val verticalMovement = -distanceY
-            
+
             handleGestureMovement(horizontalMovement, verticalMovement)
             return true
         }
@@ -62,11 +62,11 @@ class AnimatedCardStackView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         gestureDetector.onTouchEvent(event)
-        
+
         if (event.action == MotionEvent.ACTION_UP) {
             handleGestureEnd()
         }
-        
+
         return true
     }
 
@@ -85,11 +85,11 @@ class AnimatedCardStackView @JvmOverloads constructor(
             cards.add(cardView)
             addView(cardView)
         }
-        
+
         // Возврат в исходное положение
         cardOffset = 0
         isRotated = false
-        
+
         updateCardPositions()
     }
 
@@ -102,14 +102,14 @@ class AnimatedCardStackView @JvmOverloads constructor(
         val cardCount = cards.size
 
         cards.forEachIndexed { index, cardView ->
-            // Calculate base rotation (same logic as Compose)
+            // Расчёт расположения карт в исходной позиции
             val baseRotation = if (cardCount > 1) {
                 val angleStep = 45f / (cardCount - 1)
                 22.5f - (index * angleStep)
             } else {
                 0f
             }
-            
+
             // Расчёт финальной позиции (для эффекта раскрытой колоды карт)
             val targetRotation = if (isRotated) {
                 val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
@@ -145,11 +145,11 @@ class AnimatedCardStackView @JvmOverloads constructor(
     private fun handleGestureMovement(horizontalMovement: Float, verticalMovement: Float) {
         val isHorizontalSwipe = abs(horizontalMovement) > abs(verticalMovement)
         val isVerticalSwipe = abs(verticalMovement) > abs(horizontalMovement)
-        
+
         if (isVerticalSwipe) {
             dragOffsetY += verticalMovement
         }
-        
+
         if (isHorizontalSwipe) {
             handleHorizontalSwipe(horizontalMovement)
         }
@@ -172,12 +172,12 @@ class AnimatedCardStackView @JvmOverloads constructor(
      */
     private fun handleGestureEnd() {
         val threshold = 100f
-        
+
         when {
             dragOffsetY < -threshold -> isRotated = true   // Swiped up = fan out
             dragOffsetY > threshold -> isRotated = false   // Swiped down = fold back
         }
-        
+
         dragOffsetY = 0f
         updateCardPositions()
     }

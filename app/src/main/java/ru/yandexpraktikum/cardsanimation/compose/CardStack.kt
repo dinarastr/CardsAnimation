@@ -58,6 +58,7 @@ fun CardStack(cards: List<CardData>) {
             },
         contentAlignment = Alignment.Center
     ) {
+        // Отрисовка колоды карт в исходной позиции
         for (i in 0 until cardCount) {
             val actualCardIndex = (i + cardOffset) % cardCount
             val cardData = cards[actualCardIndex]
