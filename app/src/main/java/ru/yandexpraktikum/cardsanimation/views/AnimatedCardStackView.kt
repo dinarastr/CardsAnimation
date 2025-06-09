@@ -32,8 +32,11 @@ class AnimatedCardStackView @JvmOverloads constructor(
         ): Boolean {
             val horizontalMovement = -distanceX
             val verticalMovement = -distanceY
+            val isVerticalSwipe = abs(verticalMovement) > abs(horizontalMovement)
 
-            handleGestureMovement(horizontalMovement, verticalMovement)
+            if (isVerticalSwipe) {
+                dragOffsetY += verticalMovement
+            }
             return true
         }
 
@@ -147,17 +150,6 @@ class AnimatedCardStackView @JvmOverloads constructor(
     }
 
     /**
-     * Метод для обработки жестов и определения, в каком направлении произошёл свайп
-     */
-    private fun handleGestureMovement(horizontalMovement: Float, verticalMovement: Float) {
-        val isVerticalSwipe = abs(verticalMovement) > abs(horizontalMovement)
-
-        if (isVerticalSwipe) {
-            dragOffsetY += verticalMovement
-        }
-    }
-
-    /**
      * При свайпе вправо или влево нужно перетасовать карты
      * Перемещает нижнюю карту (первый элемент) наверх (в конец списка)
      * Вызывается из onFling() - выполняется только один раз на жест
@@ -168,7 +160,9 @@ class AnimatedCardStackView @JvmOverloads constructor(
         
         // Обновляем данные карт без пересоздания view
         cardDataList = reorderedCards
-        updateCardData()
+        cards.forEachIndexed { index, cardView ->
+            cardView.setCardData(cardDataList[index])
+        }
     }
 
     /**
@@ -184,15 +178,5 @@ class AnimatedCardStackView @JvmOverloads constructor(
 
         dragOffsetY = 0f
         updateCardPositions()
-    }
-
-    /**
-     * Обновляет данные карт без пересоздания view структуры
-     * Сохраняет правильное позиционирование и pivot points
-     */
-    private fun updateCardData() {
-        cards.forEachIndexed { index, cardView ->
-            cardView.setCardData(cardDataList[index])
-        }
     }
 }
