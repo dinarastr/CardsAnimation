@@ -168,14 +168,14 @@ class AnimatedCardStackView @JvmOverloads constructor(
     }
 
     /**
-     * Обработка окончания свайпа (когда пользователь убирает палец с экрана)
+куьщмув     * Обработка окончания свайпа вверх или вниз (когда пользователь убирает палец с экрана)
      */
     private fun handleGestureEnd() {
         val threshold = 100f
 
         when {
-            dragOffsetY < -threshold -> isRotated = true   // Swiped up = fan out
-            dragOffsetY > threshold -> isRotated = false   // Swiped down = fold back
+            dragOffsetY < -threshold -> isRotated = true
+            dragOffsetY > threshold -> isRotated = false
         }
 
         dragOffsetY = 0f

@@ -19,7 +19,7 @@ fun CardStack(cards: List<CardData>) {
     val cardCount = cards.size
     var isRotated by remember { mutableStateOf(false) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    var cardOffset by remember { mutableIntStateOf(0) } // Track which card is on top
+    var cardOffset by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = Modifier
