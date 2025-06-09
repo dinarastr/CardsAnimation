@@ -66,6 +66,7 @@ fun AnimatedCardStack(cards: List<CardData>) {
         for (i in 0 until cardCount) {
             val cardData = currentCards[i]
 
+            // Расчёт расположения карт в исходной позиции
             val baseRotation = if (cardCount > 1) {
                 val angleStep = 45f / (cardCount - 1)
                 22.5f - (i * angleStep)
