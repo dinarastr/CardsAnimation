@@ -75,15 +75,3 @@ fun AnimatedStackCard(
         )
     }
 }
-
-/*
- * REMOVED GESTURE HANDLER FUNCTIONS FOR EDUCATIONAL PURPOSES
- * 
- * Students will implement these functions step by step:
- * 
- * 1. handleDragEnd() - handles gesture completion
- * 2. handleVerticalSwipe() - handles fan animation
- * 3. handleHorizontalSwipe() - handles card cycling
- * 
- * Each function should be added when implementing the corresponding step.
- */
