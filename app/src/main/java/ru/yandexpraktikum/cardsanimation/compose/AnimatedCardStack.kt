@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import ru.yandexpraktikum.cardsanimation.model.CardData
+import kotlin.math.abs
 
 @Composable
 fun AnimatedCardStack(cards: List<CardData>) {
@@ -45,9 +46,9 @@ fun AnimatedCardStack(cards: List<CardData>) {
                     val verticalMovement = dragAmount.y
 
                     val isHorizontalSwipe =
-                        kotlin.math.abs(horizontalMovement) > kotlin.math.abs(verticalMovement)
+                        abs(horizontalMovement) > abs(verticalMovement)
                     val isVerticalSwipe =
-                        kotlin.math.abs(verticalMovement) > kotlin.math.abs(horizontalMovement)
+                        abs(verticalMovement) > abs(horizontalMovement)
 
                     if (isVerticalSwipe) {
                         // При вертикальном свайпе раскрываем/складываем карты
@@ -78,7 +79,7 @@ fun AnimatedCardStack(cards: List<CardData>) {
             val targetRotation = if (isRotated) {
                 // В развёрнутом состоянии карты занимают половину окружности
                 val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                -90f + (i * angleStep) // Distribute from -90° to +90°
+                -90f + (i * angleStep)
             } else {
                 // В свёрнутом карты возвращаются в исходное положение
                 baseRotation
@@ -113,7 +114,7 @@ fun handleDragEnd(
     }
 
     // Обработка горизонтального движения
-    if (kotlin.math.abs(horizontalDragDistance) > horizontalThreshold) {
+    if (abs(horizontalDragDistance) > horizontalThreshold) {
         onCardsReorder()
     }
 }
