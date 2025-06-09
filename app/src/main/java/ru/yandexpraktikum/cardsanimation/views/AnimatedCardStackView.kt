@@ -168,7 +168,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
     }
 
     /**
-куьщмув     * Обработка окончания свайпа вверх или вниз (когда пользователь убирает палец с экрана)
+     * Обработка окончания свайпа вверх или вниз (когда пользователь убирает палец с экрана)
      */
     private fun handleGestureEnd() {
         val threshold = 100f
