@@ -3,10 +3,10 @@ package ru.yandexpraktikum.cardsanimation.compose
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import ru.yandexpraktikum.cardsanimation.model.CardData
 import kotlin.math.abs
-import kotlinx.coroutines.delay
 
 @Composable
 fun AnimatedCardStack(cards: List<CardData>) {
@@ -24,10 +23,10 @@ fun AnimatedCardStack(cards: List<CardData>) {
     var currentCards by remember { mutableStateOf(cards) }
     var verticalDragOffset by remember { mutableFloatStateOf(0f) }
     var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
-    var isAnimatingSwap by remember { mutableStateOf(false) }
-    var animatingCardIndex by remember { mutableStateOf(-1) }
-    var triggerFinalStep by remember { mutableStateOf(false) }
-    var justCompletedAnimationCardIndex by remember { mutableStateOf(-1) }
+    
+    // Simple animation state
+    var isAnimating by remember { mutableStateOf(false) }
+    var animationStep by remember { mutableIntStateOf(0) } // 0=normal, 1=right, 2=center, 3=final
 
     Box(
         modifier = Modifier
@@ -39,10 +38,9 @@ fun AnimatedCardStack(cards: List<CardData>) {
                             horizontalDragDistance = horizontalDragOffset,
                             onFanStateChange = { newFanState -> isRotated = newFanState },
                             onCardsReorder = {
-                                // Start animation if not already animating
-                                if (!isAnimatingSwap && !triggerFinalStep) {
-                                    isAnimatingSwap = true
-                                    animatingCardIndex = 0 // Always animate bottom card
+                                if (!isAnimating) {
+                                    isAnimating = true
+                                    animationStep = 1 // Start with step 1
                                 }
                             }
                         )
@@ -50,8 +48,7 @@ fun AnimatedCardStack(cards: List<CardData>) {
                         horizontalDragOffset = 0f
                     }
                 ) { _, dragAmount ->
-                    // Only handle gestures if not currently animating
-                    if (!isAnimatingSwap) {
+                    if (!isAnimating) {
                         val horizontalMovement = dragAmount.x
                         val verticalMovement = dragAmount.y
 
@@ -69,41 +66,22 @@ fun AnimatedCardStack(cards: List<CardData>) {
             },
         contentAlignment = Alignment.Center
     ) {
-        // Use snapshot of cards during final step to prevent recomposition issues
-        val cardsToRender = if (triggerFinalStep) {
-            remember { currentCards.toList() }
-        } else {
-            currentCards
-        }
-        
-        cardsToRender.forEachIndexed { i, cardData ->
+        currentCards.forEachIndexed { i, cardData ->
             key(cardData.imageResId) {
-                // Calculate base rotation (collapsed state)
+                // Calculate rotations
                 val baseRotation = if (cardCount > 1) {
                     val angleStep = 45f / (cardCount - 1)
                     22.5f - (i * angleStep)
-                } else {
-                    0f
-                }
+                } else 0f
 
-                // Calculate target rotation (current fan state)
                 val targetRotation = if (isRotated) {
                     val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
                     90f - (i * angleStep)
-                } else {
-                    baseRotation
-                }
+                } else baseRotation
 
-                // Calculate final rotation for step 3 (after reordering)
-                val finalRotation = if (triggerFinalStep) {
-                    val newIndex = if (i == justCompletedAnimationCardIndex) {
-                        cardCount - 1 // Animated card becomes top card
-                    } else if (i > justCompletedAnimationCardIndex) {
-                        i - 1 // Cards above shift down
-                    } else {
-                        i // Cards below stay in place
-                    }
-                    
+                val finalRotation = if (animationStep == 3) {
+                    // Calculate position after bottom card moves to top
+                    val newIndex = if (i == 0) cardCount - 1 else i - 1
                     if (isRotated) {
                         val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
                         90f - (newIndex * angleStep)
@@ -111,45 +89,31 @@ fun AnimatedCardStack(cards: List<CardData>) {
                         val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
                         22.5f - (newIndex * angleStep)
                     }
-                } else {
-                    targetRotation
-                }
+                } else targetRotation
 
                 AnimatedCard(
                     cardIndex = i,
                     targetRotation = targetRotation,
                     cardData = cardData,
-                    isAnimating = isAnimatingSwap && i == animatingCardIndex,
-                    currentRotation = if (isAnimatingSwap && i == animatingCardIndex) baseRotation else targetRotation,
-                    triggerFinalAnimation = triggerFinalStep,
+                    isAnimating = isAnimating && i == 0, // Only animate bottom card
+                    animationStep = if (isAnimating && i == 0) animationStep else 0,
                     finalRotation = finalRotation,
-                    keepAtTopPosition = i == justCompletedAnimationCardIndex && triggerFinalStep,
-                    onAnimationComplete = {
-                        if (i == animatingCardIndex) {
-                            // Steps 1-2 completed, prepare for final step
-                            justCompletedAnimationCardIndex = i
-                            isAnimatingSwap = false
-                            animatingCardIndex = -1
-                            triggerFinalStep = true
+                    onAnimationStepComplete = { step ->
+                        if (i == 0) { // Only bottom card triggers progression
+                            when (step) {
+                                1 -> animationStep = 2 // Move to step 2
+                                2 -> animationStep = 3 // Move to step 3
+                                3 -> {
+                                    // Animation complete, reorder data
+                                    isAnimating = false
+                                    animationStep = 0
+                                    currentCards = currentCards.drop(1) + currentCards.first()
+                                }
+                            }
                         }
                     }
                 )
             }
-        }
-    }
-    
-    // Handle final step completion and data reordering
-    LaunchedEffect(triggerFinalStep) {
-        if (triggerFinalStep) {
-            delay(1000) // Wait for final animations to complete
-            
-            // Reorder data: move first card to end
-            val reorderedCards = currentCards.drop(1) + currentCards.first()
-            currentCards = reorderedCards
-            
-            // Reset animation state
-            triggerFinalStep = false
-            justCompletedAnimationCardIndex = -1
         }
     }
 }

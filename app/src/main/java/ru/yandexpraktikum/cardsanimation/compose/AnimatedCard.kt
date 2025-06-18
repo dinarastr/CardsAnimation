@@ -9,11 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
@@ -23,18 +19,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import ru.yandexpraktikum.cardsanimation.model.CardData
-import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
-
-/**
- * Animation states for the 2-step card movement
- */
-enum class CardAnimationState {
-    NORMAL,        // Normal position
-    MOVING_RIGHT,  // Step 1: Moving right
-    MOVING_TO_TOP  // Step 2: Moving to top position
-}
 
 @Composable
 fun AnimatedCard(
@@ -42,68 +28,49 @@ fun AnimatedCard(
     cardData: CardData,
     targetRotation: Float,
     isAnimating: Boolean = false,
-    currentRotation: Float = targetRotation,
-    triggerFinalAnimation: Boolean = false,
+    animationStep: Int = 0, // 0=normal, 1=move right, 2=move center, 3=final rotation
     finalRotation: Float = targetRotation,
-    keepAtTopPosition: Boolean = false,
-    onAnimationComplete: (() -> Unit)? = null
+    onAnimationStepComplete: ((Int) -> Unit)? = null
 ) {
     val density = LocalDensity.current
-    var animationState by remember { mutableStateOf(CardAnimationState.NORMAL) }
     
-    // Translation animations (only active during isAnimating)
+    // Simple translation X animation
     val animatedTranslationX by animateFloatAsState(
-        targetValue = if (isAnimating && animationState == CardAnimationState.MOVING_RIGHT) {
+        targetValue = if (isAnimating && animationStep == 1) {
             val moveDistance = with(density) { 50.dp.toPx() }
-            val rotationRad = Math.toRadians(currentRotation.toDouble())
+            val rotationRad = Math.toRadians(targetRotation.toDouble())
             moveDistance * cos(rotationRad).toFloat()
         } else 0f,
-        animationSpec = tween(durationMillis = if (animationState == CardAnimationState.MOVING_RIGHT) 800 else 1200),
+        animationSpec = tween(durationMillis = 800),
+        finishedListener = { if (isAnimating && animationStep == 1) onAnimationStepComplete?.invoke(1) },
         label = "translationX"
     )
     
+    // Simple translation Y animation
     val animatedTranslationY by animateFloatAsState(
-        targetValue = if (isAnimating && animationState == CardAnimationState.MOVING_RIGHT) {
+        targetValue = if (isAnimating && animationStep == 1) {
             val moveDistance = with(density) { 50.dp.toPx() }
-            val rotationRad = Math.toRadians(currentRotation.toDouble())
+            val rotationRad = Math.toRadians(targetRotation.toDouble())
             moveDistance * sin(rotationRad).toFloat()
         } else 0f,
-        animationSpec = tween(durationMillis = if (animationState == CardAnimationState.MOVING_RIGHT) 800 else 1200),
+        animationSpec = tween(durationMillis = 800),
+        finishedListener = { if (isAnimating && animationStep == 2) onAnimationStepComplete?.invoke(2) },
         label = "translationY"
     )
     
-    // Rotation animation
+    // Simple rotation animation
     val animatedRotation by animateFloatAsState(
-        targetValue = when {
-            triggerFinalAnimation -> finalRotation
-            isAnimating -> currentRotation
-            else -> targetRotation
+        targetValue = when (animationStep) {
+            3 -> finalRotation // Step 3: final rotation
+            else -> targetRotation // Normal target rotation
         },
-        animationSpec = tween(durationMillis = if (triggerFinalAnimation) 800 else 300),
+        animationSpec = tween(durationMillis = if (animationStep == 3) 800 else 300),
+        finishedListener = { if (animationStep == 3) onAnimationStepComplete?.invoke(3) },
         label = "rotation"
     )
     
-    // Determine if this card should be brought to front
-    val shouldBringToFront = (isAnimating && animationState == CardAnimationState.MOVING_TO_TOP) || keepAtTopPosition
-    
-    // Handle the 2-step animation sequence
-    LaunchedEffect(isAnimating) {
-        if (isAnimating) {
-            // Step 1: Move right (800ms)
-            animationState = CardAnimationState.MOVING_RIGHT
-            delay(800)
-            
-            // Step 2: Move to center (1200ms)
-            animationState = CardAnimationState.MOVING_TO_TOP
-            delay(1200)
-            
-            // Steps completed
-            animationState = CardAnimationState.NORMAL
-            onAnimationComplete?.invoke()
-        } else {
-            animationState = CardAnimationState.NORMAL
-        }
-    }
+    // Determine if card should be brought to front
+    val shouldBringToFront = isAnimating && animationStep >= 2
 
     Card(
         modifier = Modifier
@@ -113,12 +80,6 @@ fun AnimatedCard(
                 translationY = if (isAnimating) animatedTranslationY else 0f
                 rotationZ = animatedRotation
                 transformOrigin = TransformOrigin(0.5f, 1.0f)
-                
-                // Force layer creation when bringing to front
-                if (shouldBringToFront) {
-                    scaleX = 1.001f
-                    scaleY = 1.001f
-                }
             }
             .let { modifier ->
                 if (shouldBringToFront) {
