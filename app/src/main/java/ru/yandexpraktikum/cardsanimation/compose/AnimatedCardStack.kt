@@ -21,6 +21,8 @@ fun AnimatedCardStack(cards: List<CardData>) {
     var currentCards by remember { mutableStateOf(cards) }
     var verticalDragOffset by remember { mutableFloatStateOf(0f) }
     var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
+    var isAnimatingSwap by remember { mutableStateOf(false) }
+    var animatingCardIndex by remember { mutableStateOf(-1) }
 
     Box(
         modifier = Modifier
@@ -33,31 +35,36 @@ fun AnimatedCardStack(cards: List<CardData>) {
                             horizontalDragDistance = horizontalDragOffset,
                             onFanStateChange = { newFanState -> isRotated = newFanState },
                             onCardsReorder = {
-                                // Берём нижнюю карту (первый элемент) и перемещаем в конец списка
-                                val reorderedCards = currentCards.drop(1) + currentCards.first()
-                                currentCards = reorderedCards
+                                // Start the 3-step animation if not already animating
+                                if (!isAnimatingSwap) {
+                                    isAnimatingSwap = true
+                                    animatingCardIndex = 0 // Bottom card
+                                }
                             }
                         )
                         verticalDragOffset = 0f
                         horizontalDragOffset = 0f
                     }
                 ) { _, dragAmount ->
-                    val horizontalMovement = dragAmount.x
-                    val verticalMovement = dragAmount.y
+                    // Only handle gestures if not currently animating
+                    if (!isAnimatingSwap) {
+                        val horizontalMovement = dragAmount.x
+                        val verticalMovement = dragAmount.y
 
-                    val isHorizontalSwipe =
-                        abs(horizontalMovement) > abs(verticalMovement)
-                    val isVerticalSwipe =
-                        abs(verticalMovement) > abs(horizontalMovement)
+                        val isHorizontalSwipe =
+                            abs(horizontalMovement) > abs(verticalMovement)
+                        val isVerticalSwipe =
+                            abs(verticalMovement) > abs(horizontalMovement)
 
-                    if (isVerticalSwipe) {
-                        // При вертикальном свайпе раскрываем/складываем карты
-                        verticalDragOffset += verticalMovement
-                    }
+                        if (isVerticalSwipe) {
+                            // При вертикальном свайпе раскрываем/складываем карты
+                            verticalDragOffset += verticalMovement
+                        }
 
-                    if (isHorizontalSwipe) {
-                        // Накапливаем горизонтальное движение для обработки в onDragEnd
-                        horizontalDragOffset += horizontalMovement
+                        if (isHorizontalSwipe) {
+                            // Накапливаем горизонтальное движение для обработки в onDragEnd
+                            horizontalDragOffset += horizontalMovement
+                        }
                     }
                 }
             },
@@ -84,11 +91,36 @@ fun AnimatedCardStack(cards: List<CardData>) {
                 // В свёрнутом карты возвращаются в исходное положение
                 baseRotation
             }
+            
+            // Calculate what the final rotation should be after reordering
+            val finalRotation = if (isAnimatingSwap && i == animatingCardIndex) {
+                // For the animating card, calculate its final position (will become top card)
+                if (isRotated) {
+                    val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
+                    90f - ((cardCount - 1) * angleStep)
+                } else {
+                    val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
+                    22.5f - ((cardCount - 1) * angleStep)
+                }
+            } else {
+                targetRotation
+            }
 
             AnimatedCard(
                 cardIndex = i,
-                targetRotation = targetRotation,
-                cardData = cardData
+                targetRotation = if (isAnimatingSwap && i == animatingCardIndex) finalRotation else targetRotation,
+                cardData = cardData,
+                isAnimating = isAnimatingSwap && i == animatingCardIndex,
+                currentRotation = if (isAnimatingSwap && i == animatingCardIndex) baseRotation else targetRotation,
+                onAnimationComplete = {
+                    if (i == animatingCardIndex) {
+                        // Animation completed, now reorder the cards
+                        val reorderedCards = currentCards.drop(1) + currentCards.first()
+                        currentCards = reorderedCards
+                        isAnimatingSwap = false
+                        animatingCardIndex = -1
+                    }
+                }
             )
         }
     }

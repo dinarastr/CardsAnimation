@@ -153,13 +153,70 @@ class AnimatedCardStackView @JvmOverloads constructor(
      * Вызывается из onFling() - выполняется только один раз на жест
      */
     private fun handleHorizontalSwipe() {
-        // Берём нижнюю карту (первый элемент) и перемещаем в конец списка
-        val reorderedCards = cardDataList.drop(1) + cardDataList.first()
-
-        // Обновляем данные карт без пересоздания view
-        cardDataList = reorderedCards
-        cards.forEachIndexed { index, cardView ->
-            cardView.setCardData(cardDataList[index])
+        // Get the bottom card (first card in the stack)
+        val bottomCard = cards.firstOrNull() ?: return
+        val cardCount = cards.size
+        
+        // Step 1: Move the bottom card slightly to the right (as before - perfectly executed)
+        bottomCard.moveCardRight {
+            // Now bring the card to front and increase elevation
+            bottomCard.bringToFront()
+            val maxElevation = (4 + cardCount + 20).toFloat() * resources.displayMetrics.density
+            bottomCard.cardView.cardElevation = maxElevation
+            
+            // Step 2: Move the card to the top of the stack (preserving rotation)
+            bottomCard.moveCardToTop {
+                // Step 3: Update data and adjust all cards to their final positions
+                // First, update the card data order AND the view order
+                val reorderedCards = cardDataList.drop(1) + cardDataList.first()
+                cardDataList = reorderedCards
+                
+                // Also reorder the actual cards view list to match the data
+                val bottomCardView = cards.removeAt(0) // Remove the bottom card
+                cards.add(bottomCardView) // Add it to the end (becomes top card)
+                
+                // Update card data to match new order
+                cards.forEachIndexed { index, cardView ->
+                    cardView.setCardData(cardDataList[index])
+                }
+                
+                // Calculate new rotations for all cards and animate them
+                var completedAnimations = 0
+                val totalAnimations = cardCount
+                
+                cards.forEachIndexed { index, cardView ->
+                    val finalRotation = if (isRotated) {
+                        // If cards are fanned out
+                        val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
+                        90f - (index * angleStep)
+                    } else {
+                        // If cards are stacked
+                        val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
+                        22.5f - (index * angleStep)
+                    }
+                    
+                    // Animate each card to its final position
+                    cardView.adjustToFinalPosition(finalRotation, index) {
+                        completedAnimations++
+                        // When all animations are done, ensure proper positioning
+                        if (completedAnimations == totalAnimations) {
+                            // Final cleanup: ensure all cards are in correct positions
+                            cards.forEachIndexed { idx, card ->
+                                card.setStackPosition(idx)
+                                // Ensure correct final rotation
+                                val correctRotation = if (isRotated) {
+                                    val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
+                                    90f - (idx * angleStep)
+                                } else {
+                                    val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
+                                    22.5f - (idx * angleStep)
+                                }
+                                card.rotation = correctRotation
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
