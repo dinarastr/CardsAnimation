@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
-reimport androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -167,7 +167,16 @@ fun AnimatedCardStack(cards: List<CardData>) {
                     targetRotation = targetRotation,
                     cardData = cardData,
                     isAnimating = animationState.isAnimating && i == 0, // Only animate bottom card
-                    animationStep = if (animationState.isAnimating && i == 0) animationState.animationStep else 0,
+                    animationStep = if (animationState.animationStep == 3) {
+                        // During step 3, ALL cards get step 3 for simultaneous rotation
+                        3
+                    } else if (animationState.isAnimating && i == 0) {
+                        // During steps 1-2, only the bottom card gets the current step
+                        animationState.animationStep
+                    } else {
+                        // Normal state
+                        0
+                    },
                     finalRotation = finalRotation,
                     onAnimationStepComplete = { step ->
                         handleAnimationStepComplete(

@@ -60,12 +60,16 @@ fun AnimatedCard(
     
     // Simple rotation animation
     val animatedRotation by animateFloatAsState(
-        targetValue = when (animationStep) {
-            3 -> finalRotation // Step 3: final rotation
+        targetValue = when {
+            animationStep == 3 -> finalRotation // Step 3: final rotation for all cards
+            isAnimating -> targetRotation // Animating card uses target rotation
             else -> targetRotation // Normal target rotation
         },
         animationSpec = tween(durationMillis = if (animationStep == 3) 800 else 300),
-        finishedListener = { if (animationStep == 3) onAnimationStepComplete?.invoke(3) },
+        finishedListener = { 
+            // Only the animating card (bottom card) should trigger step completion
+            if (animationStep == 3 && isAnimating) onAnimationStepComplete?.invoke(3) 
+        },
         label = "rotation"
     )
     
