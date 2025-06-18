@@ -6,8 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
+reimport androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -15,6 +14,96 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import ru.yandexpraktikum.cardsanimation.model.CardData
 import kotlin.math.abs
+
+/**
+ * Data class to hold animation state
+ */
+data class CardSwapAnimationState(
+    val isAnimating: Boolean = false,
+    val animationStep: Int = 0 // 0=normal, 1=right, 2=center, 3=final
+)
+
+/**
+ * Calculate the rotation angle for a card at given index
+ */
+fun calculateCardRotation(
+    cardIndex: Int,
+    cardCount: Int,
+    isRotated: Boolean
+): Float {
+    if (cardCount <= 1) return 0f
+    
+    return if (isRotated) {
+        val angleStep = 180f / (cardCount - 1)
+        90f - (cardIndex * angleStep)
+    } else {
+        val angleStep = 45f / (cardCount - 1)
+        22.5f - (cardIndex * angleStep)
+    }
+}
+
+/**
+ * Calculate the final rotation after card reordering (bottom card moves to top)
+ */
+fun calculateFinalRotation(
+    cardIndex: Int,
+    cardCount: Int,
+    isRotated: Boolean
+): Float {
+    val newIndex = if (cardIndex == 0) cardCount - 1 else cardIndex - 1
+    return calculateCardRotation(newIndex, cardCount, isRotated)
+}
+
+/**
+ * Handle animation step progression
+ */
+fun handleAnimationStepComplete(
+    step: Int,
+    cardIndex: Int,
+    onStepChange: (Int) -> Unit,
+    onAnimationComplete: () -> Unit
+) {
+    if (cardIndex == 0) { // Only bottom card triggers progression
+        when (step) {
+            1 -> onStepChange(2) // Move to step 2
+            2 -> onStepChange(3) // Move to step 3
+            3 -> onAnimationComplete() // Animation complete
+        }
+    }
+}
+
+/**
+ * Start card swap animation
+ */
+fun startCardSwapAnimation(
+    currentState: CardSwapAnimationState,
+    onStateChange: (CardSwapAnimationState) -> Unit
+) {
+    if (!currentState.isAnimating) {
+        onStateChange(
+            CardSwapAnimationState(
+                isAnimating = true,
+                animationStep = 1
+            )
+        )
+    }
+}
+
+/**
+ * Complete card swap animation and reorder data
+ */
+fun completeCardSwapAnimation(
+    cards: List<CardData>,
+    onStateChange: (CardSwapAnimationState) -> Unit,
+    onCardsReorder: (List<CardData>) -> Unit
+) {
+    // Reset animation state
+    onStateChange(CardSwapAnimationState())
+    
+    // Reorder cards: move first card to end
+    val reorderedCards = cards.drop(1) + cards.first()
+    onCardsReorder(reorderedCards)
+}
 
 @Composable
 fun AnimatedCardStack(cards: List<CardData>) {
@@ -24,9 +113,8 @@ fun AnimatedCardStack(cards: List<CardData>) {
     var verticalDragOffset by remember { mutableFloatStateOf(0f) }
     var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
     
-    // Simple animation state
-    var isAnimating by remember { mutableStateOf(false) }
-    var animationStep by remember { mutableIntStateOf(0) } // 0=normal, 1=right, 2=center, 3=final
+    // Animation state
+    var animationState by remember { mutableStateOf(CardSwapAnimationState()) }
 
     Box(
         modifier = Modifier
@@ -38,9 +126,8 @@ fun AnimatedCardStack(cards: List<CardData>) {
                             horizontalDragDistance = horizontalDragOffset,
                             onFanStateChange = { newFanState -> isRotated = newFanState },
                             onCardsReorder = {
-                                if (!isAnimating) {
-                                    isAnimating = true
-                                    animationStep = 1 // Start with step 1
+                                startCardSwapAnimation(animationState) { newState ->
+                                    animationState = newState
                                 }
                             }
                         )
@@ -48,7 +135,7 @@ fun AnimatedCardStack(cards: List<CardData>) {
                         horizontalDragOffset = 0f
                     }
                 ) { _, dragAmount ->
-                    if (!isAnimating) {
+                    if (!animationState.isAnimating) {
                         val horizontalMovement = dragAmount.x
                         val verticalMovement = dragAmount.y
 
@@ -68,49 +155,35 @@ fun AnimatedCardStack(cards: List<CardData>) {
     ) {
         currentCards.forEachIndexed { i, cardData ->
             key(cardData.imageResId) {
-                // Calculate rotations
-                val baseRotation = if (cardCount > 1) {
-                    val angleStep = 45f / (cardCount - 1)
-                    22.5f - (i * angleStep)
-                } else 0f
-
-                val targetRotation = if (isRotated) {
-                    val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                    90f - (i * angleStep)
-                } else baseRotation
-
-                val finalRotation = if (animationStep == 3) {
-                    // Calculate position after bottom card moves to top
-                    val newIndex = if (i == 0) cardCount - 1 else i - 1
-                    if (isRotated) {
-                        val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                        90f - (newIndex * angleStep)
-                    } else {
-                        val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
-                        22.5f - (newIndex * angleStep)
-                    }
-                } else targetRotation
+                val targetRotation = calculateCardRotation(i, cardCount, isRotated)
+                val finalRotation = if (animationState.animationStep == 3) {
+                    calculateFinalRotation(i, cardCount, isRotated)
+                } else {
+                    targetRotation
+                }
 
                 AnimatedCard(
                     cardIndex = i,
                     targetRotation = targetRotation,
                     cardData = cardData,
-                    isAnimating = isAnimating && i == 0, // Only animate bottom card
-                    animationStep = if (isAnimating && i == 0) animationStep else 0,
+                    isAnimating = animationState.isAnimating && i == 0, // Only animate bottom card
+                    animationStep = if (animationState.isAnimating && i == 0) animationState.animationStep else 0,
                     finalRotation = finalRotation,
                     onAnimationStepComplete = { step ->
-                        if (i == 0) { // Only bottom card triggers progression
-                            when (step) {
-                                1 -> animationStep = 2 // Move to step 2
-                                2 -> animationStep = 3 // Move to step 3
-                                3 -> {
-                                    // Animation complete, reorder data
-                                    isAnimating = false
-                                    animationStep = 0
-                                    currentCards = currentCards.drop(1) + currentCards.first()
-                                }
+                        handleAnimationStepComplete(
+                            step = step,
+                            cardIndex = i,
+                            onStepChange = { newStep ->
+                                animationState = animationState.copy(animationStep = newStep)
+                            },
+                            onAnimationComplete = {
+                                completeCardSwapAnimation(
+                                    cards = currentCards,
+                                    onStateChange = { newState -> animationState = newState },
+                                    onCardsReorder = { newCards -> currentCards = newCards }
+                                )
                             }
-                        }
+                        )
                     }
                 )
             }
