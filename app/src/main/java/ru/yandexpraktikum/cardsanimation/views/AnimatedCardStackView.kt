@@ -121,7 +121,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
             // Расчёт финальной позиции (для эффекта раскрытой колоды карт)
             val targetRotation = if (isRotated) {
                 val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                -90f + (index * angleStep)
+                90f - (index * angleStep)
             } else {
                 baseRotation
             }

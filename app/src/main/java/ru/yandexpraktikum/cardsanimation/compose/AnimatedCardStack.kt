@@ -79,7 +79,7 @@ fun AnimatedCardStack(cards: List<CardData>) {
             val targetRotation = if (isRotated) {
                 // В развёрнутом состоянии карты занимают половину окружности
                 val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                -90f + (i * angleStep)
+                90f - (i * angleStep)
             } else {
                 // В свёрнутом карты возвращаются в исходное положение
                 baseRotation
