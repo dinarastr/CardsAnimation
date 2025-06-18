@@ -1,6 +1,5 @@
 package ru.yandexpraktikum.cardsanimation.compose
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -25,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import ru.yandexpraktikum.cardsanimation.model.CardData
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -46,6 +44,9 @@ fun AnimatedCard(
     targetRotation: Float,
     isAnimating: Boolean = false,
     currentRotation: Float = targetRotation,
+    triggerFinalAnimation: Boolean = false,
+    finalRotation: Float = targetRotation,
+    keepAtTopPosition: Boolean = false, // New parameter to maintain top position after animation
     onAnimationComplete: (() -> Unit)? = null
 ) {
     val density = LocalDensity.current
@@ -53,137 +54,108 @@ fun AnimatedCard(
     // Animation state management
     var animationState by remember { mutableStateOf(CardAnimationState.NORMAL) }
     
-    // Animatable values for smooth transitions
-    val animatedTranslationX = remember { Animatable(0f) }
-    val animatedTranslationY = remember { Animatable(0f) }
-    val animatedRotation = remember { Animatable(currentRotation) }
+    // Simple animated values using animateFloatAsState
+    val animatedTranslationX by animateFloatAsState(
+        targetValue = when {
+            isAnimating && animationState == CardAnimationState.MOVING_RIGHT -> {
+                // Step 1: Move right
+                val moveDistance = with(density) { 50.dp.toPx() }
+                val rotationRad = Math.toRadians(currentRotation.toDouble())
+                moveDistance * cos(rotationRad).toFloat()
+            }
+            else -> 0f // Step 2, Step 3, and normal state: stay at center
+        },
+        animationSpec = tween(durationMillis = if (animationState == CardAnimationState.MOVING_RIGHT) 800 else 1200),
+        label = "translationX"
+    )
+    
+    val animatedTranslationY by animateFloatAsState(
+        targetValue = when {
+            isAnimating && animationState == CardAnimationState.MOVING_RIGHT -> {
+                // Step 1: Move right
+                val moveDistance = with(density) { 50.dp.toPx() }
+                val rotationRad = Math.toRadians(currentRotation.toDouble())
+                moveDistance * sin(rotationRad).toFloat()
+            }
+            else -> 0f // Step 2, Step 3, and normal state: stay at center
+        },
+        animationSpec = tween(durationMillis = if (animationState == CardAnimationState.MOVING_RIGHT) 800 else 1200),
+        label = "translationY"
+    )
+    
+    val animatedRotation by animateFloatAsState(
+        targetValue = when {
+            triggerFinalAnimation -> finalRotation
+            isAnimating -> currentRotation
+            else -> targetRotation
+        },
+        animationSpec = tween(durationMillis = if (triggerFinalAnimation) 800 else 300),
+        label = "rotation"
+    )
     
     // Elevation for bringing card to front
     val cardElevation = when {
         isAnimating && animationState == CardAnimationState.MOVING_TO_TOP -> {
-            (4 + cardIndex + 30).dp // Extra high elevation during move to top
+            (4 + cardIndex + 30).dp
         }
         isAnimating && animationState != CardAnimationState.NORMAL -> {
-            (4 + cardIndex + 20).dp // High elevation during other animation states
+            (4 + cardIndex + 20).dp
         }
         else -> {
-            (4 + cardIndex * 1).dp // Normal elevation
+            (4 + cardIndex * 1).dp
         }
     }
     
-    // Normal rotation animation (when not doing complex animation)
-    val normalRotation by animateFloatAsState(
-        targetValue = if (isAnimating) animatedRotation.value else targetRotation,
-        animationSpec = tween(durationMillis = 300),
-        label = "normal_rotation"
-    )
-    
-    // Handle the 3-step animation sequence
+    // Handle the 3-step animation sequence (only for the animating card)
     LaunchedEffect(isAnimating) {
         if (isAnimating) {
+            println("Card $cardIndex: Starting step 1 - moving right")
             // Step 1: Move slightly to the right (800ms)
             animationState = CardAnimationState.MOVING_RIGHT
+            delay(800)
             
-            // Calculate movement in screen coordinates considering current rotation
-            val moveDistance = with(density) { 50.dp.toPx() }
-            val currentRotationRad = Math.toRadians(animatedRotation.value.toDouble())
-            val deltaX = moveDistance * cos(currentRotationRad).toFloat()
-            val deltaY = moveDistance * sin(currentRotationRad).toFloat()
-            
-            // Move X and Y simultaneously using async
-            val moveXJob = launch {
-                animatedTranslationX.animateTo(
-                    targetValue = deltaX,
-                    animationSpec = tween(durationMillis = 800)
-                )
-            }
-            val moveYJob = launch {
-                animatedTranslationY.animateTo(
-                    targetValue = deltaY,
-                    animationSpec = tween(durationMillis = 800)
-                )
-            }
-            
-            // Wait for both movements to complete
-            moveXJob.join()
-            moveYJob.join()
-            
+            println("Card $cardIndex: Starting step 2 - moving to center")
             // Step 2: Move to center position (1200ms) - preserving rotation
-            // Change state BEFORE starting the movement so elevation increases
             animationState = CardAnimationState.MOVING_TO_TOP
+            delay(1200)
             
-            // Add a small delay to make the elevation change visible
-            delay(100)
-            
-            // Move back to center simultaneously
-            val centerXJob = launch {
-                animatedTranslationX.animateTo(
-                    targetValue = 0f,
-                    animationSpec = tween(durationMillis = 1200)
-                )
-            }
-            val centerYJob = launch {
-                animatedTranslationY.animateTo(
-                    targetValue = 0f,
-                    animationSpec = tween(durationMillis = 1200)
-                )
-            }
-            
-            // Wait for both movements to complete
-            centerXJob.join()
-            centerYJob.join()
-            
-            // Step 3: Rotate to final position (800ms)
-            animationState = CardAnimationState.FINAL_ADJUST
-            
-            animatedRotation.animateTo(
-                targetValue = targetRotation,
-                animationSpec = tween(durationMillis = 800)
-            )
-            
-            // Reset state and notify completion
+            println("Card $cardIndex: Steps 1-2 completed")
+            // Steps 1-2 completed, notify to trigger step 3 for ALL cards
             animationState = CardAnimationState.NORMAL
             onAnimationComplete?.invoke()
         } else {
             // Reset to normal state when not animating
-            if (animationState != CardAnimationState.NORMAL) {
-                animatedTranslationX.snapTo(0f)
-                animatedTranslationY.snapTo(0f)
-                animatedRotation.snapTo(targetRotation)
-                animationState = CardAnimationState.NORMAL
-            }
-        }
-    }
-    
-    // Update rotation when targetRotation changes (for normal animations)
-    LaunchedEffect(targetRotation) {
-        if (!isAnimating) {
-            animatedRotation.animateTo(
-                targetValue = targetRotation,
-                animationSpec = tween(durationMillis = 300)
-            )
+            animationState = CardAnimationState.NORMAL
         }
     }
 
     Card(
-        modifier = Modifier
+                    modifier = Modifier
             .size(width = 100.dp, height = 160.dp)
             .graphicsLayer {
-                translationX = if (isAnimating) animatedTranslationX.value else 0f
-                translationY = if (isAnimating) animatedTranslationY.value else 0f
-                rotationZ = if (isAnimating) animatedRotation.value else normalRotation
+                translationX = when {
+                    isAnimating -> animatedTranslationX
+                    keepAtTopPosition -> 0f // Stay at center when keeping top position
+                    else -> 0f
+                }
+                translationY = when {
+                    isAnimating -> animatedTranslationY
+                    keepAtTopPosition -> 0f // Stay at center when keeping top position  
+                    else -> 0f
+                }
+                rotationZ = animatedRotation
                 transformOrigin = TransformOrigin(0.5f, 1.0f)
                 
-                // Bring the card to front only during step 2 and 3
-                if (isAnimating && (animationState == CardAnimationState.MOVING_TO_TOP || animationState == CardAnimationState.FINAL_ADJUST)) {
+                // Bring the card to front only during step 2 and 3, or when keeping at top
+                if ((isAnimating && (animationState == CardAnimationState.MOVING_TO_TOP || animationState == CardAnimationState.FINAL_ADJUST)) || keepAtTopPosition) {
                     scaleX = 1.001f // Tiny scale to force layer creation
                     scaleY = 1.001f
                 }
             }
-            // Use zIndex to bring card to front ONLY during step 2 and 3
+            // Use zIndex to bring card to front ONLY during step 2 and 3, or when keeping at top
             .let { modifier ->
-                if (isAnimating && (animationState == CardAnimationState.MOVING_TO_TOP || animationState == CardAnimationState.FINAL_ADJUST)) {
-                    modifier.zIndex(1000f) // High z-index only during step 2 and 3
+                if ((isAnimating && (animationState == CardAnimationState.MOVING_TO_TOP || animationState == CardAnimationState.FINAL_ADJUST)) || keepAtTopPosition) {
+                    modifier.zIndex(1000f) // High z-index during step 2 and 3, or when keeping at top
                 } else {
                     modifier
                 }
