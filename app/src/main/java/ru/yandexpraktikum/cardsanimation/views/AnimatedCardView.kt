@@ -128,4 +128,4 @@ class AnimatedCardView @JvmOverloads constructor(
             start()
         }
     }
-} 
+}

@@ -1,4 +1,4 @@
-import ru.yandexpraktikum.cardsanimation.compose.AnimatedCard
+package ru.yandexpraktikum.cardsanimation.compose
 
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
