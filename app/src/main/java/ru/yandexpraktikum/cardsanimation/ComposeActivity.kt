@@ -1,6 +1,5 @@
 package ru.yandexpraktikum.cardsanimation
 
-import AnimatedCardStack
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ru.yandexpraktikum.cardsanimation.compose.AnimatedCardStack
 import ru.yandexpraktikum.cardsanimation.model.CardData
 import ru.yandexpraktikum.cardsanimation.ui.theme.CardsAnimationTheme
 
