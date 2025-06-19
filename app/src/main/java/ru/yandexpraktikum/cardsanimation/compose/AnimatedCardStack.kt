@@ -16,15 +16,15 @@ import ru.yandexpraktikum.cardsanimation.model.CardData
 import kotlin.math.abs
 
 /**
- * Data class to hold animation state
+ * Класс для хранения состояния перетасовки карт
  */
 data class CardSwapAnimationState(
     val isAnimating: Boolean = false,
-    val animationStep: Int = 0 // 0=normal, 1=right, 2=center, 3=final
+    val animationStep: Int = 0
 )
 
 /**
- * Calculate the rotation angle for a card at given index
+ * Метод для вычисления поворота карты в конкретной позиции
  */
 fun calculateCardRotation(
     cardIndex: Int,
@@ -43,7 +43,7 @@ fun calculateCardRotation(
 }
 
 /**
- * Calculate the final rotation after card reordering (bottom card moves to top)
+ * Расчет финальной позиции после перетасовки карт
  */
 fun calculateFinalRotation(
     cardIndex: Int,
@@ -55,7 +55,10 @@ fun calculateFinalRotation(
 }
 
 /**
- * Handle animation step progression
+ * Делит анимацию на шаги:
+ * 1) поворот нижней карты вправо,
+ * 2) перенос карты поверх стопки,
+ * 3) анимация стопки карт, занимающих финальное положение
  */
 fun handleAnimationStepComplete(
     step: Int,
@@ -63,17 +66,17 @@ fun handleAnimationStepComplete(
     onStepChange: (Int) -> Unit,
     onAnimationComplete: () -> Unit
 ) {
-    if (cardIndex == 0) { // Only bottom card triggers progression
+    if (cardIndex == 0) {
         when (step) {
-            1 -> onStepChange(2) // Move to step 2
-            2 -> onStepChange(3) // Move to step 3
-            3 -> onAnimationComplete() // Animation complete
+            1 -> onStepChange(2)
+            2 -> onStepChange(3)
+            3 -> onAnimationComplete()
         }
     }
 }
 
 /**
- * Start card swap animation
+ * Начало анимации перетасовки карт
  */
 fun startCardSwapAnimation(
     currentState: CardSwapAnimationState,
@@ -90,17 +93,15 @@ fun startCardSwapAnimation(
 }
 
 /**
- * Complete card swap animation and reorder data
+ * Окончание анимации перетасовки карт
  */
 fun completeCardSwapAnimation(
     cards: List<CardData>,
     onStateChange: (CardSwapAnimationState) -> Unit,
     onCardsReorder: (List<CardData>) -> Unit
 ) {
-    // Reset animation state
     onStateChange(CardSwapAnimationState())
-    
-    // Reorder cards: move first card to end
+
     val reorderedCards = cards.drop(1) + cards.first()
     onCardsReorder(reorderedCards)
 }
@@ -113,7 +114,6 @@ fun AnimatedCardStack(cards: List<CardData>) {
     var verticalDragOffset by remember { mutableFloatStateOf(0f) }
     var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
     
-    // Animation state
     var animationState by remember { mutableStateOf(CardSwapAnimationState()) }
 
     Box(
@@ -166,15 +166,12 @@ fun AnimatedCardStack(cards: List<CardData>) {
                     cardIndex = i,
                     targetRotation = targetRotation,
                     cardData = cardData,
-                    isAnimating = animationState.isAnimating && i == 0, // Only animate bottom card
+                    isAnimating = animationState.isAnimating && i == 0,
                     animationStep = if (animationState.animationStep == 3) {
-                        // During step 3, ALL cards get step 3 for simultaneous rotation
                         3
                     } else if (animationState.isAnimating && i == 0) {
-                        // During steps 1-2, only the bottom card gets the current step
                         animationState.animationStep
                     } else {
-                        // Normal state
                         0
                     },
                     finalRotation = finalRotation,
@@ -201,7 +198,7 @@ fun AnimatedCardStack(cards: List<CardData>) {
 }
 
 /**
- * Handle drag end gesture - determines fan state and card reordering
+ * Общий метод для обработки свайпов
  */
 fun handleDragEnd(
     verticalDragDistance: Float,
@@ -212,13 +209,13 @@ fun handleDragEnd(
     val verticalThreshold = 100f
     val horizontalThreshold = 100f
 
-    // Handle vertical movement (fan/unfan)
+    // Раскрытие/закрытие карт в зависимости от направления вертикального свайпа
     when {
         verticalDragDistance < -verticalThreshold -> onFanStateChange(true)
         verticalDragDistance > verticalThreshold -> onFanStateChange(false)
     }
 
-    // Handle horizontal movement (card reordering)
+    // Если горизонтальный свайп был достаточно большим, перетасовываем карты
     if (abs(horizontalDragDistance) > horizontalThreshold) {
         onCardsReorder()
     }

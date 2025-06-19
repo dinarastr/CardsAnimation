@@ -28,13 +28,12 @@ fun AnimatedCard(
     cardData: CardData,
     targetRotation: Float,
     isAnimating: Boolean = false,
-    animationStep: Int = 0, // 0=normal, 1=move right, 2=move center, 3=final rotation
+    animationStep: Int = 0,
     finalRotation: Float = targetRotation,
     onAnimationStepComplete: ((Int) -> Unit)? = null
 ) {
     val density = LocalDensity.current
     
-    // Simple translation X animation
     val animatedTranslationX by animateFloatAsState(
         targetValue = if (isAnimating && animationStep == 1) {
             val moveDistance = with(density) { 50.dp.toPx() }
@@ -46,7 +45,6 @@ fun AnimatedCard(
         label = "translationX"
     )
     
-    // Simple translation Y animation
     val animatedTranslationY by animateFloatAsState(
         targetValue = if (isAnimating && animationStep == 1) {
             val moveDistance = with(density) { 50.dp.toPx() }
@@ -58,22 +56,21 @@ fun AnimatedCard(
         label = "translationY"
     )
     
-    // Simple rotation animation
     val animatedRotation by animateFloatAsState(
         targetValue = when {
-            animationStep == 3 -> finalRotation // Step 3: final rotation for all cards
-            isAnimating -> targetRotation // Animating card uses target rotation
-            else -> targetRotation // Normal target rotation
+            animationStep == 3 -> finalRotation
+            isAnimating -> targetRotation
+            else -> targetRotation
         },
         animationSpec = tween(durationMillis = if (animationStep == 3) 800 else 300),
         finishedListener = { 
-            // Only the animating card (bottom card) should trigger step completion
-            if (animationStep == 3 && isAnimating) onAnimationStepComplete?.invoke(3) 
+            if (animationStep == 3 && isAnimating) onAnimationStepComplete?.invoke(3)
         },
         label = "rotation"
     )
-    
-    // Determine if card should be brought to front
+
+    // Поднимаем карту наверх только после второго шага
+    // (после того, как нижняя карта выдвинулась вправо)
     val shouldBringToFront = isAnimating && animationStep >= 2
 
     Card(
