@@ -153,70 +153,102 @@ class AnimatedCardStackView @JvmOverloads constructor(
      * Вызывается из onFling() - выполняется только один раз на жест
      */
     private fun handleHorizontalSwipe() {
-        // Get the bottom card (first card in the stack)
         val bottomCard = cards.firstOrNull() ?: return
-        val cardCount = cards.size
-        
-        // Step 1: Move the bottom card slightly to the right (as before - perfectly executed)
+        startCardSwapAnimation(bottomCard)
+    }
+
+    /**
+     * Начинает анимацию перестановки карт
+     * Шаг 1: Перемещение нижней карты вправо
+     */
+    private fun startCardSwapAnimation(bottomCard: AnimatedCardView) {
         bottomCard.moveCardRight {
-            // Now bring the card to front and increase elevation
-            bottomCard.bringToFront()
-            val maxElevation = (4 + cardCount + 20).toFloat() * resources.displayMetrics.density
-            bottomCard.cardView.cardElevation = maxElevation
+            bringCardToFront(bottomCard)
+            moveCardToTopPosition(bottomCard)
+        }
+    }
+
+    /**
+     * Выносит карту на передний план с максимальной высотой
+     */
+    private fun bringCardToFront(card: AnimatedCardView) {
+        card.bringToFront()
+        val maxElevation = (4 + cards.size + 20).toFloat() * resources.displayMetrics.density
+        card.cardView.cardElevation = maxElevation
+    }
+
+    /**
+     * Шаг 2: Перемещение карты в верхнюю позицию с сохранением поворота
+     */
+    private fun moveCardToTopPosition(bottomCard: AnimatedCardView) {
+        bottomCard.moveCardToTop {
+            reorderCardsData()
+            animateAllCardsToFinalPositions()
+        }
+    }
+
+    /**
+     * Обновляет порядок данных карт и представлений
+     */
+    private fun reorderCardsData() {
+        // Обновляем порядок данных карт
+        val reorderedCards = cardDataList.drop(1) + cardDataList.first()
+        cardDataList = reorderedCards
+        
+        // Переставляем карту в списке представлений
+        val bottomCardView = cards.removeAt(0)
+        cards.add(bottomCardView)
+        
+        // Обновляем данные карт в соответствии с новым порядком
+        cards.forEachIndexed { index, cardView ->
+            cardView.setCardData(cardDataList[index])
+        }
+    }
+
+    /**
+     * Шаг 3: Анимирует все карты к их финальным позициям
+     */
+    private fun animateAllCardsToFinalPositions() {
+        var completedAnimations = 0
+        val totalAnimations = cards.size
+        
+        cards.forEachIndexed { index, cardView ->
+            val finalRotation = calculateFinalRotation(index)
             
-            // Step 2: Move the card to the top of the stack (preserving rotation)
-            bottomCard.moveCardToTop {
-                // Step 3: Update data and adjust all cards to their final positions
-                // First, update the card data order AND the view order
-                val reorderedCards = cardDataList.drop(1) + cardDataList.first()
-                cardDataList = reorderedCards
-                
-                // Also reorder the actual cards view list to match the data
-                val bottomCardView = cards.removeAt(0) // Remove the bottom card
-                cards.add(bottomCardView) // Add it to the end (becomes top card)
-                
-                // Update card data to match new order
-                cards.forEachIndexed { index, cardView ->
-                    cardView.setCardData(cardDataList[index])
-                }
-                
-                // Calculate new rotations for all cards and animate them
-                var completedAnimations = 0
-                val totalAnimations = cardCount
-                
-                cards.forEachIndexed { index, cardView ->
-                    val finalRotation = if (isRotated) {
-                        // If cards are fanned out
-                        val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                        90f - (index * angleStep)
-                    } else {
-                        // If cards are stacked
-                        val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
-                        22.5f - (index * angleStep)
-                    }
-                    
-                    // Animate each card to its final position
-                    cardView.adjustToFinalPosition(finalRotation, index) {
-                        completedAnimations++
-                        // When all animations are done, ensure proper positioning
-                        if (completedAnimations == totalAnimations) {
-                            // Final cleanup: ensure all cards are in correct positions
-                            cards.forEachIndexed { idx, card ->
-                                card.setStackPosition(idx)
-                                // Ensure correct final rotation
-                                val correctRotation = if (isRotated) {
-                                    val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                                    90f - (idx * angleStep)
-                                } else {
-                                    val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
-                                    22.5f - (idx * angleStep)
-                                }
-                                card.rotation = correctRotation
-                            }
-                        }
-                    }
+            cardView.adjustToFinalPosition(finalRotation, index) {
+                completedAnimations++
+                if (completedAnimations == totalAnimations) {
+                    finalizeCardPositions()
                 }
             }
+        }
+    }
+
+    /**
+     * Вычисляет финальный поворот для карты на заданной позиции
+     */
+    private fun calculateFinalRotation(cardIndex: Int): Float {
+        val cardCount = cards.size
+        return if (isRotated) {
+            // Если карты развернуты веером
+            val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
+            90f - (cardIndex * angleStep)
+        } else {
+            // Если карты сложены в стопку
+            val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
+            22.5f - (cardIndex * angleStep)
+        }
+    }
+
+    /**
+     * Финальная настройка позиций всех карт после завершения анимации
+     */
+    private fun finalizeCardPositions() {
+        cards.forEachIndexed { index, card ->
+            card.setStackPosition(index)
+            // Устанавливаем точный финальный поворот
+            val correctRotation = calculateFinalRotation(index)
+            card.rotation = correctRotation
         }
     }
 
