@@ -15,8 +15,8 @@ class AnimatedCardStackView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
+    private var cardDataList: List<CardData> = emptyList()
     private val cards = mutableListOf<AnimatedCardView>()
-    private var cardDataList = listOf<CardData>()
 
     private var isRotated = false
     private var dragOffsetY = 0f
