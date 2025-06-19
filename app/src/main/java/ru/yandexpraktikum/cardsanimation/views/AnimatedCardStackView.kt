@@ -121,7 +121,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
             // Расчёт финальной позиции (для эффекта раскрытой колоды карт)
             val targetRotation = if (isRotated) {
                 val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                -90f + (index * angleStep)
+                90f - (index * angleStep)
             } else {
                 baseRotation
             }
@@ -153,13 +153,102 @@ class AnimatedCardStackView @JvmOverloads constructor(
      * Вызывается из onFling() - выполняется только один раз на жест
      */
     private fun handleHorizontalSwipe() {
-        // Берём нижнюю карту (первый элемент) и перемещаем в конец списка
-        val reorderedCards = cardDataList.drop(1) + cardDataList.first()
+        val bottomCard = cards.firstOrNull() ?: return
+        startCardSwapAnimation(bottomCard)
+    }
 
-        // Обновляем данные карт без пересоздания view
+    /**
+     * Начинает анимацию перестановки карт
+     * Шаг 1: Перемещение нижней карты вправо
+     */
+    private fun startCardSwapAnimation(bottomCard: AnimatedCardView) {
+        bottomCard.moveCardRight {
+            bringCardToFront(bottomCard)
+            moveCardToTopPosition(bottomCard)
+        }
+    }
+
+    /**
+     * Выносит карту на передний план с максимальной высотой
+     */
+    private fun bringCardToFront(card: AnimatedCardView) {
+        card.bringToFront()
+        val maxElevation = (4 + cards.size + 20).toFloat() * resources.displayMetrics.density
+        card.cardView.cardElevation = maxElevation
+    }
+
+    /**
+     * Шаг 2: Перемещение карты в верхнюю позицию с сохранением поворота
+     */
+    private fun moveCardToTopPosition(bottomCard: AnimatedCardView) {
+        bottomCard.moveCardToTop {
+            reorderCardsData()
+            animateAllCardsToFinalPositions()
+        }
+    }
+
+    /**
+     * Обновляет порядок данных карт и представлений
+     */
+    private fun reorderCardsData() {
+        // Обновляем порядок данных карт
+        val reorderedCards = cardDataList.drop(1) + cardDataList.first()
         cardDataList = reorderedCards
+
+        // Переставляем карту в списке представлений
+        val bottomCardView = cards.removeAt(0)
+        cards.add(bottomCardView)
+
+        // Обновляем данные карт в соответствии с новым порядком
         cards.forEachIndexed { index, cardView ->
             cardView.setCardData(cardDataList[index])
+        }
+    }
+
+    /**
+     * Шаг 3: Анимирует все карты к их финальным позициям
+     */
+    private fun animateAllCardsToFinalPositions() {
+        var completedAnimations = 0
+        val totalAnimations = cards.size
+
+        cards.forEachIndexed { index, cardView ->
+            val finalRotation = calculateFinalRotation(index)
+
+            cardView.adjustToFinalPosition(finalRotation, index) {
+                completedAnimations++
+                if (completedAnimations == totalAnimations) {
+                    finalizeCardPositions()
+                }
+            }
+        }
+    }
+
+    /**
+     * Вычисляет финальный поворот для карты на заданной позиции
+     */
+    private fun calculateFinalRotation(cardIndex: Int): Float {
+        val cardCount = cards.size
+        return if (isRotated) {
+            // Если карты развернуты веером
+            val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
+            90f - (cardIndex * angleStep)
+        } else {
+            // Если карты сложены в стопку
+            val angleStep = if (cardCount > 1) 45f / (cardCount - 1) else 0f
+            22.5f - (cardIndex * angleStep)
+        }
+    }
+
+    /**
+     * Финальная настройка позиций всех карт после завершения анимации
+     */
+    private fun finalizeCardPositions() {
+        cards.forEachIndexed { index, card ->
+            card.setStackPosition(index)
+            // Устанавливаем точный финальный поворот
+            val correctRotation = calculateFinalRotation(index)
+            card.rotation = correctRotation
         }
     }
 

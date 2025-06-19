@@ -1,9 +1,10 @@
-package ru.yandexpraktikum.cardsanimation.compose
+import ru.yandexpraktikum.cardsanimation.compose.AnimatedCard
 
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,6 +15,97 @@ import androidx.compose.ui.input.pointer.pointerInput
 import ru.yandexpraktikum.cardsanimation.model.CardData
 import kotlin.math.abs
 
+/**
+ * Класс для хранения состояния перетасовки карт
+ */
+data class CardSwapAnimationState(
+    val isAnimating: Boolean = false,
+    val animationStep: Int = 0
+)
+
+/**
+ * Метод для вычисления поворота карты в конкретной позиции
+ */
+fun calculateCardRotation(
+    cardIndex: Int,
+    cardCount: Int,
+    isRotated: Boolean
+): Float {
+    if (cardCount <= 1) return 0f
+
+    return if (isRotated) {
+        val angleStep = 180f / (cardCount - 1)
+        90f - (cardIndex * angleStep)
+    } else {
+        val angleStep = 45f / (cardCount - 1)
+        22.5f - (cardIndex * angleStep)
+    }
+}
+
+/**
+ * Расчет финальной позиции после перетасовки карт
+ */
+fun calculateFinalRotation(
+    cardIndex: Int,
+    cardCount: Int,
+    isRotated: Boolean
+): Float {
+    val newIndex = if (cardIndex == 0) cardCount - 1 else cardIndex - 1
+    return calculateCardRotation(newIndex, cardCount, isRotated)
+}
+
+/**
+ * Делит анимацию на шаги:
+ * 1) поворот нижней карты вправо,
+ * 2) перенос карты поверх стопки,
+ * 3) анимация стопки карт, занимающих финальное положение
+ */
+fun handleAnimationStepComplete(
+    step: Int,
+    cardIndex: Int,
+    onStepChange: (Int) -> Unit,
+    onAnimationComplete: () -> Unit
+) {
+    if (cardIndex == 0) {
+        when (step) {
+            1 -> onStepChange(2)
+            2 -> onStepChange(3)
+            3 -> onAnimationComplete()
+        }
+    }
+}
+
+/**
+ * Начало анимации перетасовки карт
+ */
+fun startCardSwapAnimation(
+    currentState: CardSwapAnimationState,
+    onStateChange: (CardSwapAnimationState) -> Unit
+) {
+    if (!currentState.isAnimating) {
+        onStateChange(
+            CardSwapAnimationState(
+                isAnimating = true,
+                animationStep = 1
+            )
+        )
+    }
+}
+
+/**
+ * Окончание анимации перетасовки карт
+ */
+fun completeCardSwapAnimation(
+    cards: List<CardData>,
+    onStateChange: (CardSwapAnimationState) -> Unit,
+    onCardsReorder: (List<CardData>) -> Unit
+) {
+    onStateChange(CardSwapAnimationState())
+
+    val reorderedCards = cards.drop(1) + cards.first()
+    onCardsReorder(reorderedCards)
+}
+
 @Composable
 fun AnimatedCardStack(cards: List<CardData>) {
     val cardCount = cards.size
@@ -21,6 +113,8 @@ fun AnimatedCardStack(cards: List<CardData>) {
     var currentCards by remember { mutableStateOf(cards) }
     var verticalDragOffset by remember { mutableFloatStateOf(0f) }
     var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
+
+    var animationState by remember { mutableStateOf(CardSwapAnimationState()) }
 
     Box(
         modifier = Modifier
@@ -33,63 +127,73 @@ fun AnimatedCardStack(cards: List<CardData>) {
                             horizontalDragDistance = horizontalDragOffset,
                             onFanStateChange = { newFanState -> isRotated = newFanState },
                             onCardsReorder = {
-                                // Берём нижнюю карту (первый элемент) и перемещаем в конец списка
-                                val reorderedCards = currentCards.drop(1) + currentCards.first()
-                                currentCards = reorderedCards
+                                startCardSwapAnimation(animationState) { newState ->
+                                    animationState = newState
+                                }
                             }
                         )
                         verticalDragOffset = 0f
                         horizontalDragOffset = 0f
                     }
                 ) { _, dragAmount ->
-                    val horizontalMovement = dragAmount.x
-                    val verticalMovement = dragAmount.y
+                    if (!animationState.isAnimating) {
+                        val horizontalMovement = dragAmount.x
+                        val verticalMovement = dragAmount.y
 
-                    val isHorizontalSwipe =
-                        abs(horizontalMovement) > abs(verticalMovement)
-                    val isVerticalSwipe =
-                        abs(verticalMovement) > abs(horizontalMovement)
+                        val isHorizontalSwipe = abs(horizontalMovement) > abs(verticalMovement)
+                        val isVerticalSwipe = abs(verticalMovement) > abs(horizontalMovement)
 
-                    if (isVerticalSwipe) {
-                        // При вертикальном свайпе раскрываем/складываем карты
-                        verticalDragOffset += verticalMovement
-                    }
-
-                    if (isHorizontalSwipe) {
-                        // Накапливаем горизонтальное движение для обработки в onDragEnd
-                        horizontalDragOffset += horizontalMovement
+                        if (isVerticalSwipe) {
+                            verticalDragOffset += verticalMovement
+                        }
+                        if (isHorizontalSwipe) {
+                            horizontalDragOffset += horizontalMovement
+                        }
                     }
                 }
             },
         contentAlignment = Alignment.Center
     ) {
-        // Отрисовка колоды карт в исходной позиции
-        for (i in 0 until cardCount) {
-            val cardData = currentCards[i]
+        currentCards.forEachIndexed { i, cardData ->
+            key(cardData.imageResId) {
+                val targetRotation = calculateCardRotation(i, cardCount, isRotated)
+                val finalRotation = if (animationState.animationStep == 3) {
+                    calculateFinalRotation(i, cardCount, isRotated)
+                } else {
+                    targetRotation
+                }
 
-            // Расчёт расположения карт в исходной позиции
-            val baseRotation = if (cardCount > 1) {
-                val angleStep = 45f / (cardCount - 1)
-                22.5f - (i * angleStep)
-            } else {
-                0f
+                AnimatedCard(
+                    cardIndex = i,
+                    targetRotation = targetRotation,
+                    cardData = cardData,
+                    isAnimating = animationState.isAnimating && i == 0,
+                    animationStep = if (animationState.animationStep == 3) {
+                        3
+                    } else if (animationState.isAnimating && i == 0) {
+                        animationState.animationStep
+                    } else {
+                        0
+                    },
+                    finalRotation = finalRotation,
+                    onAnimationStepComplete = { step ->
+                        handleAnimationStepComplete(
+                            step = step,
+                            cardIndex = i,
+                            onStepChange = { newStep ->
+                                animationState = animationState.copy(animationStep = newStep)
+                            },
+                            onAnimationComplete = {
+                                completeCardSwapAnimation(
+                                    cards = currentCards,
+                                    onStateChange = { newState -> animationState = newState },
+                                    onCardsReorder = { newCards -> currentCards = newCards }
+                                )
+                            }
+                        )
+                    }
+                )
             }
-
-            // Расчёт расположения карт в зависимости от состояния
-            val targetRotation = if (isRotated) {
-                // В развёрнутом состоянии карты занимают половину окружности
-                val angleStep = if (cardCount > 1) 180f / (cardCount - 1) else 0f
-                -90f + (i * angleStep)
-            } else {
-                // В свёрнутом карты возвращаются в исходное положение
-                baseRotation
-            }
-
-            AnimatedCard(
-                cardIndex = i,
-                targetRotation = targetRotation,
-                cardData = cardData
-            )
         }
     }
 }
