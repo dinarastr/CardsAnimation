@@ -20,6 +20,9 @@ class AnimatedCardStackView @JvmOverloads constructor(
 
     private var isRotated = false
     private var dragOffsetY = 0f
+    
+    private var isAnimating = false
+    private var animationStep = 0
 
     // Инстанс GestureDetector для обработки жестов
     private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
@@ -153,6 +156,8 @@ class AnimatedCardStackView @JvmOverloads constructor(
      * Вызывается из onFling() - выполняется только один раз на жест
      */
     private fun handleHorizontalSwipe() {
+        if (isAnimating) return
+        
         val bottomCard = cards.firstOrNull() ?: return
         startCardSwapAnimation(bottomCard)
     }
@@ -162,7 +167,11 @@ class AnimatedCardStackView @JvmOverloads constructor(
      * Шаг 1: Перемещение нижней карты вправо
      */
     private fun startCardSwapAnimation(bottomCard: AnimatedCardView) {
+        isAnimating = true
+        animationStep = 1
+        
         bottomCard.moveCardRight {
+            animationStep = 2
             bringCardToFront(bottomCard)
             moveCardToTopPosition(bottomCard)
         }
@@ -182,6 +191,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
      */
     private fun moveCardToTopPosition(bottomCard: AnimatedCardView) {
         bottomCard.moveCardToTop {
+            animationStep = 3
             reorderCardsData()
             animateAllCardsToFinalPositions()
         }
@@ -250,12 +260,17 @@ class AnimatedCardStackView @JvmOverloads constructor(
             val correctRotation = calculateFinalRotation(index)
             card.rotation = correctRotation
         }
+        
+        isAnimating = false
+        animationStep = 0
     }
 
     /**
      * Обработка окончания свайпа вверх или вниз (когда пользователь убирает палец с экрана)
      */
     private fun handleVerticalSwipe() {
+        if (isAnimating) return
+        
         val threshold = 100f
 
         when {
