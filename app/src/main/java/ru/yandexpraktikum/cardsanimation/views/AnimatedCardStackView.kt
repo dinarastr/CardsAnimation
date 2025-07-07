@@ -20,7 +20,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
 
     private var isRotated = false
     private var dragOffsetY = 0f
-    
+
     private var isAnimating = false
     private var animationStep = 0
 
@@ -157,7 +157,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
      */
     private fun handleHorizontalSwipe() {
         if (isAnimating) return
-        
+
         val bottomCard = cards.firstOrNull() ?: return
         startCardSwapAnimation(bottomCard)
     }
@@ -169,7 +169,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
     private fun startCardSwapAnimation(bottomCard: AnimatedCardView) {
         isAnimating = true
         animationStep = 1
-        
+
         bottomCard.moveCardRight {
             animationStep = 2
             bringCardToFront(bottomCard)
@@ -260,7 +260,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
             val correctRotation = calculateFinalRotation(index)
             card.rotation = correctRotation
         }
-        
+
         isAnimating = false
         animationStep = 0
     }
@@ -270,7 +270,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
      */
     private fun handleVerticalSwipe() {
         if (isAnimating) return
-        
+
         val threshold = 100f
 
         when {
