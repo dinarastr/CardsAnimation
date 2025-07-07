@@ -101,9 +101,7 @@ fun completeCardSwapAnimation(
     onCardsReorder: (List<CardData>) -> Unit
 ) {
     onStateChange(CardSwapAnimationState())
-
-    val reorderedCards = cards.drop(1) + cards.first()
-    onCardsReorder(reorderedCards)
+    onCardsReorder(reorderCards(cards))
 }
 
 @Composable
@@ -196,6 +194,11 @@ fun AnimatedCardStack(cards: List<CardData>) {
             }
         }
     }
+}
+
+// Простая функция перестановки карт
+fun reorderCards(cards: List<CardData>): List<CardData> {
+    return cards.drop(1) + cards.first()
 }
 
 /**
