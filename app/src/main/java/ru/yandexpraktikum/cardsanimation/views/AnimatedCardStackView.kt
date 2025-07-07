@@ -203,12 +203,18 @@ class AnimatedCardStackView @JvmOverloads constructor(
     }
 
     /**
+     * Простая функция перестановки карт
+     */
+    private fun reorderCards(cards: List<CardData>): List<CardData> {
+        return cards.drop(1) + cards.first()
+    }
+
+    /**
      * Обновляет порядок данных карт и представлений
      */
     private fun reorderCardsData() {
         // Обновляем порядок данных карт
-        val reorderedCards = cardDataList.drop(1) + cardDataList.first()
-        cardDataList = reorderedCards
+        cardDataList = reorderCards(cardDataList)
 
         // Переставляем карту в списке представлений
         val bottomCardView = cards.removeAt(0)
