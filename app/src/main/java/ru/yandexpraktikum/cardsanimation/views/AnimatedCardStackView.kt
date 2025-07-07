@@ -19,7 +19,8 @@ class AnimatedCardStackView @JvmOverloads constructor(
     private val cards = mutableListOf<AnimatedCardView>()
 
     private var isRotated = false
-    private var dragOffsetY = 0f
+    private var horizontalDragOffset = 0f
+    private var verticalDragOffset = 0f
 
     private var isAnimating = false
     private var animationStep = 0
@@ -36,9 +37,13 @@ class AnimatedCardStackView @JvmOverloads constructor(
             val horizontalMovement = -distanceX
             val verticalMovement = -distanceY
             val isVerticalSwipe = abs(verticalMovement) > abs(horizontalMovement)
+            val isHorizontalSwipe = abs(horizontalMovement) > abs(verticalMovement)
 
             if (isVerticalSwipe) {
-                dragOffsetY += verticalMovement
+                verticalDragOffset += verticalMovement
+            }
+            if (isHorizontalSwipe) {
+                horizontalDragOffset += horizontalMovement
             }
             return true
         }
@@ -78,7 +83,7 @@ class AnimatedCardStackView @JvmOverloads constructor(
         gestureDetector.onTouchEvent(event)
 
         if (event.action == MotionEvent.ACTION_UP) {
-            handleVerticalSwipe()
+            handleDragEnd()
         }
 
         return true
@@ -266,19 +271,47 @@ class AnimatedCardStackView @JvmOverloads constructor(
     }
 
     /**
-     * Обработка окончания свайпа вверх или вниз (когда пользователь убирает палец с экрана)
+     * Обработка окончания любого свайпа - определяет доминирующее направление
      */
-    private fun handleVerticalSwipe() {
+    private fun handleDragEnd() {
         if (isAnimating) return
 
         val threshold = 100f
+        val isVerticalDominant = abs(verticalDragOffset) > abs(horizontalDragOffset)
+        val isHorizontalDominant = abs(horizontalDragOffset) > abs(verticalDragOffset)
 
         when {
-            dragOffsetY < -threshold -> isRotated = true
-            dragOffsetY > threshold -> isRotated = false
+            isVerticalDominant && abs(verticalDragOffset) > threshold -> {
+                handleVerticalSwipe()
+            }
+            isHorizontalDominant && abs(horizontalDragOffset) > threshold -> {
+                handleHorizontalSwipeFromDrag()
+            }
         }
 
-        dragOffsetY = 0f
+        // Сбрасываем оба offset'а в любом случае
+        verticalDragOffset = 0f
+        horizontalDragOffset = 0f
+    }
+
+    /**
+     * Обработка окончания свайпа вверх или вниз (когда пользователь убирает палец с экрана)
+     */
+    private fun handleVerticalSwipe() {
+        when {
+            verticalDragOffset < -100f -> isRotated = true
+            verticalDragOffset > 100f -> isRotated = false
+        }
         updateCardPositions()
+    }
+
+    /**
+     * Обработка окончания горизонтального свайпа через drag offset
+     */
+    private fun handleHorizontalSwipeFromDrag() {
+        val bottomCard = cards.firstOrNull()
+        if (bottomCard != null) {
+            startCardSwapAnimation(bottomCard)
+        }
     }
 }
