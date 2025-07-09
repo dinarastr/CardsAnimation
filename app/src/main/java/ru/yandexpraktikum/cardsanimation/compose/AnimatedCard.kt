@@ -76,7 +76,6 @@ fun AnimatedCard(
     Card(
         modifier = Modifier
             .size(width = 100.dp, height = 160.dp)
-            // TODO: Добавьте анимацию карты при свайпе вправо или влево
             .graphicsLayer {
                 translationX = if (isAnimating) animatedTranslationX else 0f
                 translationY = if (isAnimating) animatedTranslationY else 0f
